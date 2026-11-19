@@ -1,46 +1,75 @@
 # BTSU — Tata Kelola Buku Tanah dan Surat Ukur
 
-Aplikasi administrasi peminjaman dokumen kantor berbasis PHP dengan PostgreSQL di Supabase.
-
-## Menyiapkan Supabase
-
-1. Buat proyek Supabase dan salin nilai koneksi PostgreSQL dari **Project Settings → Database**. Untuk PHP di jaringan IPv4, gunakan connection string session pooler jika koneksi Direct tidak tersedia.
-2. Jalankan `database/schema_supabase.sql` di Supabase **SQL Editor**.
-3. Jika memulai database kosong, jalankan `database/seed_supabase.sql` untuk data master dan kelurahan Semarang. Jangan jalankan seed ini sebelum memindahkan database MySQL yang sudah berisi data.
-4. Pastikan ekstensi `pdo_pgsql` aktif pada `php.ini` Laragon (di distribusi yang terdeteksi, barisnya `extension=pdo_pgsql`), lalu atur environment variable untuk proses PHP: `DB_HOST`, `DB_PORT` (biasanya `5432`), `DB_NAME` (biasanya `postgres`), `DB_USER`, `DB_PASS`, dan `DB_SSLMODE` (`require`). Restart Laragon setelah mengubah konfigurasi.
-5. Salin proyek ke document root web server lokal (misalnya `C:\laragon\www\btsu`) dan buka `http://btsu.test/setup.php` atau URL lokal proyek. Buat akun Super Admin pertama; kata sandi minimal 12 karakter.
-6. Masuk melalui halaman utama aplikasi.
-
-Kredensial database hanya digunakan oleh PHP di server. Jangan menaruh password database atau Supabase service-role key di JavaScript/browser. Halaman penyiapan hanya dapat membuat akun awal selama tabel admin masih kosong.
-
-## Memindahkan data MySQL lama
-
-1. Hentikan sementara akses tulis ke aplikasi lama, buat cadangan database MySQL, dan pastikan skemanya sudah pada versi terbaru.
-2. Jalankan `database/schema_supabase.sql` pada proyek Supabase. Pastikan tabel tujuan masih kosong; skrip migrasi menolak menimpa data yang sudah ada.
-3. Atur `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`, dan `DB_SSLMODE` untuk Supabase. Untuk database MySQL sumber, opsional atur `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_NAME`, `MYSQL_USER`, dan `MYSQL_PASS`; nilai default sumber adalah `127.0.0.1:3306`, database `btsu`, user `root`, tanpa password.
-4. Dari terminal Laragon pada folder proyek, jalankan `php database/migrate_mysql_to_supabase.php`. Pastikan PHP CLI mengaktifkan ekstensi `pdo_mysql` dan `pdo_pgsql`. Skrip memindahkan semua tabel dalam satu transaksi, mempertahankan ID, dan tidak mengisi ulang kolom hasil kalkulasi.
-5. Periksa jumlah data di Supabase, lalu jalankan aplikasi dengan kredensial `DB_*` Supabase. Simpan cadangan MySQL lama sampai hasil migrasi tervalidasi.
-
-`database/schema.sql`, `database/seed_kelurahan_semarang.sql`, dan dua file `database/migrate_*.sql` lama adalah untuk MySQL sumber, bukan untuk Supabase. Aplikasi sekarang menggunakan PDO PostgreSQL.
+Aplikasi administrasi Buku Tanah dan Surat Ukur berbasis Next.js yang dapat dijalankan di Vercel. PostgreSQL di Supabase digunakan sebagai database; seluruh akses database, autentikasi, dan aksi tulis hanya berjalan di server.
 
 ## Fitur
 
-- Login admin, hash kata sandi, pembatasan 5 kegagalan masuk per 15 menit, sesi 30 menit, CSRF, dan pembatasan peran.
-- Inventaris dokumen, pencarian/filter, kelurahan berdasarkan kecamatan, lokasi penyimpanan dengan input angka, dan status terlambat yang dihitung otomatis dari tenggat aktif.
-- Data peminjam yang didaftarkan saat transaksi, ekspor laporan periode ke Excel atau PDF, transaksi multi-dokumen, pengembalian sebagian, serta perpanjangan dengan alasan dan batas jumlah.
-- Dashboard, laporan inventaris/peminjaman/keterlambatan/dokumen hilang, ekspor CSV, cetak/simpan sebagai PDF dari browser.
-- Pengaturan Super Admin: akun admin, master unit/kategori/kecamatan, durasi pinjam, dan batas perpanjangan.
-- Catatan audit untuk aktivitas penting.
+- Inisialisasi akun Super Admin, login, pembatasan percobaan masuk, sesi 30 menit, dan peran admin.
+- Inventaris dokumen, pencarian/filter, master wilayah, impor CSV, dan riwayat peminjaman.
+- Data peminjam, peminjaman multi-dokumen, pengembalian sebagian, dan perpanjangan tenggat.
+- Dashboard, laporan inventaris/peminjaman/keterlambatan, ekspor CSV, dan cetak ke PDF melalui browser.
+- Pengaturan admin, master data, aturan peminjaman, serta catatan audit.
 
-Impor CSV menggunakan [database/template_dokumen.csv](database/template_dokumen.csv). Header harus dipertahankan; gunakan nama kecamatan, kelurahan, dan jenis hak yang ada pada master data.
+## Menyiapkan Supabase
 
-Dashboard menampilkan hitungan jatuh tempo dan keterlambatan secara langsung. Pengiriman ringkasan surel harian/WhatsApp belum dikonfigurasi karena memerlukan layanan dan kredensial kantor.
+1. Buat proyek Supabase.
+2. Buka **SQL Editor**, jalankan `database/schema_supabase.sql`, lalu jalankan `database/seed_supabase.sql` untuk data master dan kelurahan Semarang. Jangan jalankan seed bila data master sudah diisi atau sedang dipindahkan dari database lama.
+3. Dari **Project Settings → Database**, salin koneksi PostgreSQL. Untuk Vercel, gunakan connection string Supabase **Session Pooler** atau **Transaction Pooler** yang tersedia di proyek tersebut. Pastikan SSL diaktifkan (`sslmode=require`).
+4. Jangan menaruh kredensial database atau service-role key pada variabel `NEXT_PUBLIC_*`.
 
-## Database dan cadangan
+### Memindahkan data MySQL lama
 
-Skema Supabase/PostgreSQL berada di `database/schema_supabase.sql`. Untuk instalasi kosong, `database/seed_supabase.sql` menambahkan data master dan kelurahan. Untuk cadangan terjadwal, siapkan `pg_dump` atau gunakan fitur backup Supabase; retensikan cadangan sekurangnya 30 hari, simpan di lokasi terpisah, dan uji proses pemulihannya secara berkala.
+Sebelum migrasi, buat cadangan MySQL, hentikan sementara perubahan data, dan pastikan skema sumber sudah terbaru.
 
+1. Jalankan `database/schema_supabase.sql` pada proyek Supabase dan pastikan tabel tujuan masih kosong.
+2. Pada lingkungan PHP yang dapat menjangkau MySQL dan Supabase, atur `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`, dan `DB_SSLMODE` untuk Supabase. Untuk MySQL sumber, opsional atur `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_NAME`, `MYSQL_USER`, dan `MYSQL_PASS`; default sumber adalah `127.0.0.1:3306`, database `btsu`, user `root`, tanpa password.
+3. Pastikan PHP CLI mengaktifkan ekstensi `pdo_mysql` dan `pdo_pgsql`, lalu jalankan `php database/migrate_mysql_to_supabase.php`.
+4. Verifikasi jumlah data dan login aplikasi dengan database Supabase sebelum menonaktifkan sumber lama. Skrip menolak menimpa data tujuan yang sudah ada.
 
-## Produksi
+## Menjalankan lokal
 
-Aktifkan HTTPS, atur kredensial database non-default, batasi akses jaringan ke server, dan lindungi cadangan yang berisi data pribadi. Versi ini tidak mengirim surel reset kata sandi; pengguna meminta reset kepada Super Admin.
+Persyaratan: Node.js **20.9 atau lebih baru**.
+
+```powershell
+npm ci
+Copy-Item .env.example .env.local
+```
+
+Isi `.env.local`:
+
+```dotenv
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/postgres?sslmode=require
+SESSION_SECRET=isi-dengan-random-secret-minimal-32-karakter
+```
+
+Buat secret acak menggunakan Node.js:
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Lalu jalankan:
+
+```powershell
+npm run dev
+```
+
+Buka `http://localhost:3000`. Jika tabel admin masih kosong, aplikasi meminta Anda membuat akun Super Admin pertama. Gunakan kata sandi minimal 12 karakter.
+
+## Deploy ke Vercel
+
+1. Push/unggah repository ini ke GitHub dan impor repository melalui **Vercel → Add New → Project**.
+2. Pilih root direktori repository. Vercel mendeteksi Next.js dan menjalankan `npm run build`.
+3. Pada **Project Settings → Environment Variables**, tambahkan:
+   - `DATABASE_URL`: connection string PostgreSQL Supabase dengan SSL.
+   - `SESSION_SECRET`: string acak sekurangnya 32 karakter; gunakan nilai berbeda untuk Production, Preview, dan Development.
+4. Aktifkan variabel untuk environment yang diperlukan, lalu deploy atau redeploy.
+5. Buka domain Vercel. Bila belum ada admin, buat akun Super Admin pertama. Domain kustom dapat dipasang dari **Project → Settings → Domains**.
+
+Template variabel tersedia di `.env.example`. Jangan commit `.env.local` atau mengirim kredensial ke browser.
+
+## Catatan operasional
+
+- Vercel menjalankan Next.js/Node.js; file PHP lama dan server Laragon tidak dijalankan di Vercel. Folder skrip migrasi PHP dipertahankan untuk memindahkan data lama.
+- Backup dan pemulihan database dikelola melalui Supabase atau `pg_dump`; simpan backup secara terpisah dan uji pemulihannya.
+- Pengguna yang lupa kata sandi perlu meminta reset kepada Super Admin. Pengiriman email reset dan notifikasi harian belum dikonfigurasi.
